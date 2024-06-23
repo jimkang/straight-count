@@ -1,6 +1,8 @@
 var assert = require('assert');
+var fs = require('fs');
 
 var suits = ['♣', '♦', '♥', '♠'];
+// var suits = ['C', 'D', 'H', 'S'];
 
 var standardDeck = [];
 for (let rank = 1; rank < 14; ++rank) {
@@ -9,27 +11,60 @@ for (let rank = 1; rank < 14; ++rank) {
   }
 }
 
+// TreeNode:
+// {
+//   kids: [],
+//   id,
+//   cards
+// }
 var countedHandsByString = {};
-const total = standardDeck.reduce((sum, startCard) => sum + count(standardDeck, [startCard]), 0);
-console.log('Counted hands:\n', Object.keys(countedHandsByString).join('\n'));
+var root = {
+  id: 'root',
+  kids: []
+};
+var exploredBranchesByRootId = new Set();
+// 245
+// 24, 25, 45
+// 2, 4
+// Paths: 2->24->245 4->24->245
+
+const total = standardDeck.reduce((sum, startCard) => sum + count(standardDeck, [startCard], root), 0);
+// console.log('Counted hands:\n', Object.keys(countedHandsByString).join('\n'));
 console.log('total:', total);
 
-function count(deck, hand, countTree) {
+// for (var key in root.kids) {
+//   console.log(`{"${key}": `, JSON.stringify(root[key], null, 2));
+// }
+
+fs.writeFileSync('count-trees.json', JSON.stringify(root, null, 2));
+fs.writeFileSync('count-trees-min.json', JSON.stringify(root));
+
+function count(deck, hand, parentTree) {
   hand.sort(compareCards);
 
+  const handString = hand.map(cardToString).join('');
+  var currentTree = {
+    id: handString,
+    // cards: hand.slice(),
+  };
+  if (!parentTree.kids) {
+    parentTree.kids = [];
+  }
+  parentTree.kids.push(currentTree);
+
   if (hand.length === 5) {
-    const handString = hand.map(cardToString).join('');
     if (!(handString in countedHandsByString)) {
       countedHandsByString[handString] = handString;
       return 1;
     } else {
+      console.error('Hand already counted:', handString);
       return 0;
     }
   }
 
   var cardsInRange = getCardsInRange(hand, deck);
   return cardsInRange.reduce(
-    (sum, card) => sum + count(copyWithout(deck, card), addToCopy(hand, card)),
+    (sum, card) => sum + count(copyWithout(deck, card), addToCopy(hand, card), currentTree),
     0
   );
 }
