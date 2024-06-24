@@ -4,3 +4,6 @@ diagram:
 circo-diagram:
 	env LD_LIBRARY_PATH=/usr/lib/graphviz && \
 	cat straight-count.dot |circo -Tsvg -v -o straight-count.svg
+
+run:
+	./node_modules/.bin/vite

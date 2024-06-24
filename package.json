@@ -1,0 +1,25 @@
+{
+  "name": "straight-count",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.7.2",
+    "eslint": "^7.32.0",
+    "prettier": "^2.8.8",
+    "vite": "^4.3.9"
+  },
+  "dependencies": {
+    "@jimkang/randomid": "^1.1.0",
+    "basic-browser-request": "^10.0.2",
+    "d3-queue": "^3.0.7",
+    "errorback-promise": "^1.0.0",
+    "handle-error-web": "^1.0.1",
+    "no-throw-json-parse": "^1.0.0",
+    "oknok": "^3.0.0",
+    "request-body-mover": "^1.0.1"
+  }
+}
