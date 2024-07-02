@@ -1,5 +1,3 @@
-var fs = require('fs');
-
 var suits = ['♣️', '♦️', '♥️', '♠️'];
 // var suits = ['C', 'D', 'H', 'S'];
 
@@ -19,32 +17,54 @@ for (let rank = 1; rank < 14; ++rank) {
 
 var writtenHands = new Set();
 var prevGen = standardDeck.map((card) => [card]);
+var nextGen = [];
+var gen = 0;
+var iters = 0;
+var genRSeparation = 0.4;
 
-var edgesStream = fs.createWriteStream('edges.ndjson');
-var nodesStream = fs.createWriteStream('nodes.ndjson');
+export function* getNextVizDataGen(yieldFreq) {
+  var nodes = [];
+  var edges = [];
+  console.log('gen', gen);
 
-for (let gen = 0; gen < 2; ++gen) {
-  let nextGen = [];
-  for (let hand of prevGen) {
+  for (let handIndex = 0; handIndex < prevGen.length; ++handIndex) {
+    let hand = prevGen[handIndex];
     let nextHands = getNextHands(hand, standardDeck);
-    for (let nextHand of nextHands) {
+    for (
+      let nextHandIndex = 0;
+      nextHandIndex < nextHands.length;
+      ++nextHandIndex
+    ) {
+      let nextHand = nextHands[nextHandIndex];
       const handString = handToString(hand);
-      // TODO: Position
-      let node = { id: handString, gen };
+      let node = {
+        id: handString,
+        gen,
+        r: 1 + gen * genRSeparation,
+        theta: handIndex * ((2 * Math.PI) / prevGen.length),
+      };
       if (!writtenHands.has(handString)) {
-        nodesStream.write(JSON.stringify(node) + '\n');
+        nodes.push(node);
         writtenHands.add(handString);
       }
       let edge = { s: handString, e: handToString(nextHand) };
-      edgesStream.write(JSON.stringify(edge) + '\n');
+      edges.push(edge);
       nextGen.push(nextHand);
+      iters += 1;
+      if (iters % yieldFreq === 0) {
+        // console.log('Yielding.');
+        yield { nodes: nodes.slice(), edges: edges.slice() };
+        nodes.length = 0;
+        edges.length = 0;
+      }
     }
   }
   prevGen = nextGen;
+  yield { nodes, edges, gen };
+  gen += 1;
+  console.log('Returning.');
+  return;
 }
-
-edgesStream.close();
-nodesStream.close();
 
 function getNextHands(hand, deck) {
   var cardsInRange = getCardsInRange(hand, deck).filter(notInHand);
@@ -85,13 +105,6 @@ function getCardsInRange(hand, deck) {
     }
     return true;
   }
-}
-
-function getCardIndex(array, card) {
-  return array.findIndex(
-    (arrayCard) =>
-      (arrayCard.rank === card.rank) & (arrayCard.suit === card.suit)
-  );
 }
 
 function cardToString({ rank, suit }) {

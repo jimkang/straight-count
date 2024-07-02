@@ -1,28 +1,20 @@
 import { version } from './package.json';
 import handleError from 'handle-error-web';
-import request from 'basic-browser-request';
-// import ep from 'errorback-promise';
+import { getNextVizDataGen } from './generate-viz-data';
+import { select } from 'd3-selection';
 
-import parse from 'no-throw-json-parse';
+const yieldFreq = 5000;
+const maxGens = 2;
+var gensDone = 0;
+const scale = 100 / maxGens;
 
-var lineWithEndRegex = /(.*\n)/;
-
-var edges = [];
-var nodes = [];
+var getNextVizData = getNextVizDataGen(yieldFreq);
+var nodeSel = select('#node-root');
 
 (async function go() {
   window.addEventListener('error', reportTopLevelError);
   renderVersion();
-  streamData({
-    url: 'nodes.ndjson',
-    onObject: onNode,
-    done: () => console.log('nodes.ndjson stream done.'),
-  });
-  streamData({
-    url: 'edges.ndjson',
-    onObject: onEdge,
-    done: () => console.log('edges.ndjson stream done.'),
-  });
+  putOutNextGeneration();
 })();
 
 function reportTopLevelError(event) {
@@ -34,62 +26,37 @@ function renderVersion() {
   versionInfo.textContent = version;
 }
 
-function streamData({ url, onObject, done }) {
-  var bufferString = '';
+function putOutNextGeneration() {
+  // done means done for just that generation.
+  var { value, done } = getNextVizData.next();
+  // console.log('value', value, 'done', done);
 
-  var reqOpts = {
-    url,
-    method: 'GET',
-    onData: writeToStream,
-  };
-  request(reqOpts, reqDone);
-
-  function writeToStream(text) {
-    bufferString += text;
-    if (!bufferString.includes('\n')) {
-      return;
+  if (done) {
+    if (gensDone < maxGens) {
+      getNextVizData = getNextVizDataGen(yieldFreq);
+      requestAnimationFrame(putOutNextGeneration);
     }
-    let pieces = bufferString.split(lineWithEndRegex);
-    for (let i = 0; i < pieces.length; ++i) {
-      let piece = pieces[i];
-      if (piece.length < 1) {
-        continue;
-      }
-
-      if (piece.endsWith('\n')) {
-        parseLine(piece);
-      } else {
-        bufferString = piece;
-        break;
-      }
-    }
+    return;
   }
 
-  function emitObject(obj) {
-    if (obj.abbreviatedOid) {
-      onCommit(obj);
-    } else {
-      onRepo(obj);
-    }
-  }
-
-  function parseLine(piece) {
-    let parsed = parse(piece);
-    if (parsed !== undefined) {
-      onObject(parsed);
-    }
-  }
-
-  function reqDone(error) {
-    if (error) {
-      done(error);
-      return;
-    }
-
-    if (bufferString.length > 0) {
-      parseLine(bufferString);
-    }
-
-    done();
+  var { nodes, edges } = value;
+  gensDone = value.gen;
+  if (nodes || edges) {
+    // console.log('nodes', nodes, 'edges', edges);
+    nodes.forEach(appendNode);
+    renderNewEdges(edges);
+    requestAnimationFrame(putOutNextGeneration);
   }
 }
+
+function appendNode(node) {
+  const r = node.r * scale;
+  const x = r * Math.cos(node.theta);
+  const y = r * Math.sin(node.theta);
+
+  // console.log(node.id, node.theta, x, y);
+  var textSel = nodeSel.append('text');
+  textSel.text(node.id).attr('x', x).attr('y', y);
+}
+
+function renderNewEdges(edges) {}
